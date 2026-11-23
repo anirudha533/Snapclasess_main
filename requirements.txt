@@ -1,0 +1,22 @@
+streamlit
+numpy 
+pandas
+
+#Face recognistion lib
+scikit-learn
+dlib-bin
+
+git+https://github.com/ageitgey/face_recognition_models
+# Keep pkg_resources for the face models while allowing PyTorch.
+setuptools>=77.0.3,<81
+
+supabase
+bcrypt
+
+segno
+pillow
+
+streamlit
+
+librosa
+resemblyzer
