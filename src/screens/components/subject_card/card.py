@@ -5,7 +5,7 @@ from postgrest.exceptions import APIError
 import streamlit as st
 
 from src.database.db import enroll_in_subject
-from src.screens.components.subject_sharing.forms import render_subject_share_code
+from src.screens.components.subject_sharing.forms import share_subject_dialog
 
 
 _SUBJECT_CARD_STYLE = """
@@ -84,14 +84,12 @@ def _render_subject_card(username: str, subject: dict):
             </article>
         """)
         with st.container(horizontal=True, gap="small"):
-            share = st.popover(
+            if st.button(
                 "Share Code", key=f"teacher_share_subject_{subject_id}",
-                icon=":material/share:", on_change="rerun",
+                icon=":material/share:",
                 help=f"Share the join code for {subject['subject_code']}.",
-            )
-            if share.open:
-                with share:
-                    render_subject_share_code(username, subject_id)
+            ):
+                share_subject_dialog(username, subject_id, subject["name"] or "Untitled subject")
             manual = st.popover(
                 "Add Student by ID", key=f"teacher_add_to_subject_{subject_id}",
                 type="tertiary", on_change="rerun",
