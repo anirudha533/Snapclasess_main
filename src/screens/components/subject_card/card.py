@@ -109,7 +109,8 @@ def _add_student_by_id(subject_id: int):
         if st.form_submit_button("Add student", width="stretch"):
             if student_id.isascii() and student_id.isdecimal() and 0 < int(student_id) <= 2**63 - 1:
                 try:
-                    enroll_in_subject(int(student_id), subject_id)
+                    with st.spinner("Enrolling student…", show_time=True):
+                        enroll_in_subject(int(student_id), subject_id)
                 except APIError as error:
                     if error.code != "23503":
                         raise

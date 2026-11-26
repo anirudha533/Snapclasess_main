@@ -23,7 +23,7 @@ TEACHER_STYLES = """
     visibility: hidden;
 }
 .stApp:has(.st-key-teacher_portal) .block-container {
-    max-width: 920px;
+    max-width: 1000px;
     padding-top: clamp(2rem, 5vh, 3.5rem);
     padding-bottom: 2rem;
 }
@@ -121,22 +121,22 @@ TEACHER_STYLES = """
 .st-key-current_teacher_tab [role="tablist"] {
     display: flex;
     flex-wrap: wrap;
-    gap: .65rem;
+    gap: 1rem;
 }
 .st-key-teacher_portal .st-key-current_teacher_tab [role="tab"] {
-    flex: 1 1 auto;
+    flex: 1 1 12rem;
     justify-content: center;
-    min-height: 2.85rem;
+    min-height: 3.15rem;
     padding: .55rem 1rem;
     border: 0;
     border-radius: 999px;
-    background: #101014;
+    background: #09090b;
     color: #fff;
     font: 600 1rem Outfit, sans-serif;
     transition: background-color .15s ease;
 }
 .st-key-teacher_portal .st-key-current_teacher_tab [role="tab"]:hover {
-    background: #101014;
+    background: #09090b;
     color: #fff;
     filter: none;
 }
@@ -180,9 +180,14 @@ def teacher_screen():
             else:
                 name, username = identity
                 st.html(f'<div class="teacher-welcome">Welcome, {escape(name)}</div>')
-                if st.button("Sign out", key="teacher_sign_out", width="stretch"):
+                if st.button("Logout", key="teacher_sign_out", icon=":material/logout:"):
                     del st.session_state["teacher_identity"]
                     st.session_state.pop("teacher_subject_form_open", None)
+                    st.session_state.pop("teacher_capture_scope", None)
+                    st.session_state.pop("teacher_attendance_photos", None)
+                    st.session_state.pop("teacher_attendance_suggestions", None)
+                    st.session_state.pop("teacher_photo_analysis", None)
+                    st.session_state.pop("teacher_attendance_result", None)
                     st.session_state["teacher_auth_mode"] = "login"
                     st.rerun()
 
@@ -249,11 +254,13 @@ def _teacher_auth_form():
             if error:
                 st.error(error)
                 return
-            if not create_teacher(username, password, name):
-                st.error("That username is already registered. Choose another or log in.")
-                return
+            with st.spinner("Creating your teacher account…", show_time=True):
+                if not create_teacher(username, password, name):
+                    st.error("That username is already registered. Choose another or log in.")
+                    return
         else:
-            authenticated_name = teacher_login(username, password)
+            with st.spinner("Checking your sign-in details…", show_time=True):
+                authenticated_name = teacher_login(username, password)
             if authenticated_name is None:
                 st.error("The username or password is incorrect.")
                 return

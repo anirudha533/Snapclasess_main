@@ -107,26 +107,3 @@ def identify_speaker(
     if tied or best_score < threshold:
         return None, best_score
     return best_id, best_score
-
-
-def process_bulk_audio(
-    audio_bytes: bytes,
-    candidates_dict: Mapping[int, object],
-    threshold: float = _DEFAULT_THRESHOLD,
-) -> dict[int, float]:
-    """Match separated utterances and keep each speaker's highest score."""
-    if not 0 < threshold <= 1:
-        raise ValueError("The cosine threshold must be greater than zero and at most one.")
-    if not candidates_dict:
-        return {}
-
-    audio = _load_audio(audio_bytes)
-    results: dict[int, float] = {}
-    for start, end in librosa.effects.split(audio, top_db=30):
-        if end - start < _MIN_SPEECH_SAMPLES:
-            continue
-        embedding = _embed_audio(audio[start:end])
-        student_id, score = identify_speaker(embedding, candidates_dict, threshold)
-        if student_id is not None:
-            results[student_id] = max(score, results.get(student_id, 0.0))
-    return results

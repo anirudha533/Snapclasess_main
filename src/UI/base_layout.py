@@ -33,19 +33,6 @@ def style_background_home():
                 """
                 ,unsafe_allow_html=True)
     
-def style_bacground_dashboard():
-
-    st.markdown("""
-        <style>
-                .stApp{
-                background:#E0E3FF !important;}
-                
-        </style>        
-
-
-                """
-                ,unsafe_allow_html=True)    
-
 def style_base_layout():
 
     st.markdown("""

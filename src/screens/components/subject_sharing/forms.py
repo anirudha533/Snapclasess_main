@@ -33,7 +33,8 @@ def share_subject_dialog(username: str, subject_id: int, subject_name: str):
     """)
     with st.container(key="subject_share_dialog"):
         try:
-            code = get_subject_join_code(username, subject_id)
+            with st.spinner("Preparing the share link and QR code…", show_time=True):
+                code = get_subject_join_code(username, subject_id)
         except APIError as error:
             if error.code in {"42703", "PGRST204"}:
                 st.info("Run the Supabase subject join codes migration to generate share codes.")
@@ -65,7 +66,7 @@ def share_subject_dialog(username: str, subject_id: int, subject_name: str):
 
 def render_join_subject_form(student_id: int):
     shared_code = st.query_params.get("join-code", "").strip().upper()[:32]
-    with st.expander("Join a Subject", expanded=bool(shared_code)):
+    with st.container(border=True):
         with st.form("student_join_subject"):
             code = st.text_input(
                 "Subject share code", value=shared_code,
@@ -79,7 +80,8 @@ def render_join_subject_form(student_id: int):
             return
 
         try:
-            status = join_subject_by_code(student_id, code)
+            with st.spinner("Joining subject…", show_time=True):
+                status = join_subject_by_code(student_id, code)
         except APIError as error:
             if error.code != "PGRST202":
                 raise

@@ -66,6 +66,24 @@ def get_student_profile(student_id: int) -> dict | None:
     return response.data[0] if response.data else None
 
 
+def get_student_profiles_by_name(name: str) -> list[dict]:
+    # PostgREST treats "*" as a LIKE wildcard. Match it as one character
+    # in the query, then verify the literal name before using a profile.
+    pattern = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("*", "_")
+    client = get_supabase()
+    profiles = []
+    offset = 0
+    while True:
+        batch = (
+            client.table("students").select("student_id,name,face_embedding,voice_embedding")
+            .ilike("name", pattern).order("student_id").range(offset, offset + 499).execute().data
+        )
+        if not batch:
+            return profiles
+        profiles.extend(row for row in batch if row["name"].casefold() == name.casefold())
+        offset += len(batch)
+
+
 def create_student(name: str, face_embedding: list[float], voice_embedding: list[float]) -> int:
     response = get_supabase().table("students").insert({
         "name": name,
@@ -90,13 +108,18 @@ def record_attendance(student_id: int, subject_id: int) -> str:
     }).execute().data
 
 
-def get_teacher_subjects(username: str) -> list[dict]:
+def get_teacher_subjects(username: str, *, include_stats: bool = True) -> list[dict]:
     client = get_supabase()
+    columns = "subject_id,subject_code,name,section,teachers!inner(username)"
+    if include_stats:
+        columns += ",subject_students(count)"
     response = (
-        client.table("subjects")
-        .select("subject_id,subject_code,name,section,teachers!inner(username),subject_students(count)")
+        client.table("subjects").select(columns)
         .eq("teachers.username", username).order("subject_id").execute()
     )
+    if not include_stats:
+        return response.data
+
     school_timezone = ZoneInfo("Asia/Kolkata")
     for subject in response.data:
         roster_count = subject.pop("subject_students", [])
@@ -142,22 +165,74 @@ def enroll_in_subject(student_id: int, subject_id: int) -> None:
     ).execute()
 
 
-def get_attendance_report(subject_id: int, start: str, end: str) -> list[dict]:
+def unenroll_from_subject(student_id: int, subject_id: int) -> None:
+    get_supabase().table("subject_students").delete(returning="minimal").eq(
+        "student_id", student_id,
+    ).eq("subject_id", subject_id).execute()
+
+
+def get_subject_biometrics(subject_id: int, field: str) -> dict:
+    if field not in {"face_embedding", "voice_embedding"}:
+        raise ValueError("Unsupported biometric field")
     client = get_supabase()
-    roster = (
+    candidates = {}
+    offset = 0
+    while True:
+        batch = (
+            client.table("subject_students").select(f"student_id,students({field})")
+            .eq("subject_id", subject_id).order("student_id")
+            .range(offset, offset + 499).execute().data
+        )
+        if not batch:
+            return candidates
+        candidates.update(
+            (row["student_id"], row["students"][field])
+            for row in batch if row["students"] and row["students"][field] is not None
+        )
+        offset += len(batch)
+
+
+def get_attendance_report(
+    subject_id: int, start: str, end: str, *, include_history: bool = False,
+) -> list[dict]:
+    client = get_supabase()
+    roster_query = (
         client.table("subject_students").select("student_id,students(name)")
-        .eq("subject_id", subject_id).order("student_id").execute().data
+        .eq("subject_id", subject_id).order("student_id")
     )
-    logs = (
-        client.table("attendance_logs").select("student_id")
-        .eq("subject_id", subject_id).gte("timestamp", start).lt("timestamp", end).execute().data
+    log_columns = "student_id,timestamp,students(name)" if include_history else "student_id"
+    logs_query = (
+        client.table("attendance_logs").select(log_columns)
+        .eq("subject_id", subject_id).gte("timestamp", start).lt("timestamp", end).order("id")
     )
-    present = {row["student_id"] for row in logs}
-    return [
-        {"Student ID": row["student_id"], "Name": row["students"]["name"],
-         "Status": "Present" if row["student_id"] in present else "Absent"}
-        for row in roster
-    ]
+    rows = {}
+    present = set()
+    for query in (roster_query, logs_query):
+        offset = 0
+        while True:
+            batch = query.range(offset, offset + 499).execute().data
+            if not batch:
+                break
+            offset += len(batch)
+            for row in batch:
+                student_id = row["student_id"]
+                if query is roster_query:
+                    rows[student_id] = {
+                        "Student ID": student_id, "Name": row["students"]["name"], "Status": "Absent",
+                    }
+                    continue
+                present.add(student_id)
+                if include_history:
+                    entry = rows.setdefault(student_id, {
+                        "Student ID": student_id, "Name": row["students"]["name"], "Status": "Absent",
+                    })
+                    marked_at = datetime.fromisoformat(row["timestamp"])
+                    if "Marked At" not in entry or marked_at < entry["Marked At"]:
+                        entry["Marked At"] = marked_at
+
+    for student_id in present.intersection(rows):
+        rows[student_id]["Status"] = "Present"
+    return list(rows.values())
 
 
 def get_subject_join_code(username: str, subject_id: int) -> str | None:

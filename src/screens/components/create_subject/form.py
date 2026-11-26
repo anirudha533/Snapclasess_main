@@ -44,7 +44,8 @@ def render_create_subject(username: str):
             section = st.text_input("Section", max_chars=32).strip()
             if st.form_submit_button("Save subject", type="primary", width="stretch"):
                 if code and name:
-                    create_subject(username, code, name, section or "N/A")
+                    with st.spinner("Creating subject…", show_time=True):
+                        create_subject(username, code, name, section or "N/A")
                     st.session_state.pop("teacher_subject_form_open", None)
                     st.rerun()
                 st.error("Enter a subject code and name.")
