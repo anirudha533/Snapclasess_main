@@ -1,15 +1,21 @@
 import streamlit as st
-from src.screens.components.header import header_home   
+from src.screens.components.header import header_home
 from src.UI.base_layout import style_base_layout,style_background_home
-from src.screens.components.footer import footer_home 
+from src.screens.components.footer import footer_home
 
 def home_screen():
     header_home()
-    
+
 
     style_background_home()
     style_base_layout()
-    
+
+    with st.container(horizontal_alignment="center"):
+        if st.button("Try guest demo", type="primary"):
+            st.query_params["demo"] = "1"
+            st.rerun()
+        st.caption("Review attendance for a sample class. No sign-in needed.")
+
     col1, col2 = st.columns(2)
 
     with col1, st.container(horizontal_alignment="center"):
@@ -25,4 +31,4 @@ def home_screen():
         if st.button('Student Portal'):
             st.session_state['login_type'] = 'student'
             st.rerun()
-    footer_home()        
+    footer_home()
